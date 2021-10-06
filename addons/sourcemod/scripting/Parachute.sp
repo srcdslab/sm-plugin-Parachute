@@ -224,7 +224,7 @@ void DeleteParachute(int client)
 
 void CheckClientLocation(int client)
 {
-    float g_fSpeed[3];
+	float g_fSpeed[3];
 	GetEntDataVector(client, g_iVelocity, g_fSpeed);
 	if(g_fSpeed[2] >= 0 || (GetEntityFlags(client) & FL_ONGROUND)) 
 	{
