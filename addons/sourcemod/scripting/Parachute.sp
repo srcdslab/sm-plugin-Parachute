@@ -1,14 +1,13 @@
 /*******************************************************************************
     SM Parachute
-    Version: 2.5
     Author: SWAT_88
-	
+
     Copyright:
-  
+
     Everybody can edit this plugin and copy this plugin.
-	
+
     Thanks to:
-  
+
 	Greyscale
 	Pinkfairie
 	bl4nk
@@ -16,7 +15,8 @@
 	Knagg0
 	KRoT@L
 	JTP10181
-	
+	Dolly132
+
     HAVE FUN!!!
 *******************************************************************************/
 
@@ -24,8 +24,6 @@
 #include <sdktools>
 #include <clientprefs>
 #include <multicolors>
-
-#define PARACHUTE_VERSION 	"2.6"
 
 enum struct ParachuteInfo
 {
@@ -62,7 +60,7 @@ public Plugin myinfo =
 	name = "SM Parachute",
 	author = "SWAT_88",
 	description = "Adds a parachute with low gravity when you hold the use key",
-	version = PARACHUTE_VERSION,
+	version = "2.6.0",
 	url = "http://www.sourcemod.net/"
 };
 
@@ -85,16 +83,16 @@ public OnPluginStart()
 	RegConsoleCmd("sm_parachute", Command_Parachute);
 	RegConsoleCmd("sm_para", Command_Parachute);
 	RegConsoleCmd("sm_pchute", Command_Parachute);
-	
+
 	HookEvent("player_death", PlayerDeath);
 	HookEvent("round_end", RoundEnd);
 
 	AutoExecConfig(true);
-	
-	g_arParachutes = new ArrayList(ByteCountToCells(PLATFORM_MAX_PATH + 70));
-	
+
+	g_arParachutes = new ArrayList(sizeof(ParachuteInfo));
+
 	g_hCookie = new Cookie("parachute_cookie", "Parachute model cookie for client", CookieAccess_Private);
-	
+
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i) || !AreClientCookiesCached(i))
@@ -118,46 +116,40 @@ public void OnClientCookiesCached(int client)
 {
 	if (!g_arParachutes || !g_arParachutes.Length)
 		return;
-	
+
 	char cookieValue[64];
 	g_hCookie.Get(client, cookieValue, sizeof(cookieValue));
-	
-	if (!cookieValue[0])
+
+	if (cookieValue[0])
 	{
-		ParachuteInfo info;
-		g_arParachutes.GetArray(0, info, sizeof(info));
-		FormatEx(g_sClientModel[client], sizeof(g_sClientModel[]), info.name);
-		return;
-	}
-	
-	for (int i = 0; i < g_arParachutes.Length; i++)
-	{
-		ParachuteInfo info;
-		g_arParachutes.GetArray(i, info, sizeof(info));
-		if (strcmp(info.name, cookieValue) == 0)
+		for (int i = 0; i < g_arParachutes.Length; i++)
 		{
-			FormatEx(g_sClientModel[client], sizeof(g_sClientModel[]), cookieValue);
-			return;
+			ParachuteInfo info;
+			g_arParachutes.GetArray(i, info, sizeof(info));
+			if (strcmp(info.name, cookieValue) == 0)
+			{
+				FormatEx(g_sClientModel[client], sizeof(g_sClientModel[]), cookieValue);
+				return;
+			}
 		}
 	}
-	
+
+	// Dont set cookie if no cookie was found. Use default parachute model instead.
 	ParachuteInfo info;
 	g_arParachutes.GetArray(0, info, sizeof(info));
 	FormatEx(g_sClientModel[client], sizeof(g_sClientModel[]), info.name);
-	g_hCookie.Set(client, info.name);
-	return;
 }
 
 public void OnMapStart()
 {
 	PrecacheModels();
-	ReadDownloadsFile();    
+	ReadDownloadsFile();
 }
 
 void PrecacheModels()
 {
 	g_arParachutes.Clear();
-	
+
 	char KvPath[128];
 	BuildPath(Path_SM, KvPath, sizeof(KvPath), "configs/parachute_models.cfg");
 	KeyValues Kv = new KeyValues("Models");
@@ -166,36 +158,44 @@ void PrecacheModels()
 		delete Kv;
 		return;
 	}
-	
+
 	if (!Kv.GotoFirstSubKey())
 	{
 		delete Kv;
 		return;
 	}
-	
+
 	do
 	{
 		ParachuteInfo info;
 		Kv.GetSectionName(info.name, sizeof(ParachuteInfo::name));
-		
+
 		Kv.GetString("model", info.model, sizeof(ParachuteInfo::model));
 		info.z = Kv.GetFloat("z");
-		
+
 		char angles[15];
 		Kv.GetString("angles", angles, sizeof(angles), "0 0 0");
-		
-		char explodedAngles[3][5];
-		ExplodeString(angles, " ", explodedAngles, 3, 5);
-		info.angles[0] = StringToFloat(explodedAngles[0]);
-		info.angles[1] = StringToFloat(explodedAngles[1]);
-		info.angles[2] = StringToFloat(explodedAngles[2]);
-		
+
+		char explodedAngles[3][16];
+		if (ExplodeString(angles, " ", explodedAngles, 3, sizeof(explodedAngles[])) == 3)
+		{
+			info.angles[0] = StringToFloat(explodedAngles[0]);
+			info.angles[1] = StringToFloat(explodedAngles[1]);
+			info.angles[2] = StringToFloat(explodedAngles[2]);
+		}
+		else
+		{
+			info.angles[0] = 0.0;
+			info.angles[1] = 0.0;
+			info.angles[2] = 0.0;
+		}
+
 		PrecacheModel(info.model);
-	
+
 		g_arParachutes.PushArray(info, sizeof(info));
 	} while(Kv.GotoNextKey());
-	
-	delete Kv;	
+
+	delete Kv;
 }
 
 void ReadDownloadsFile()
@@ -231,6 +231,13 @@ public void RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
+		if (!IsClientInGame(i))
+			continue;
+		
+		StopParachute(i);
+		DeleteParachute(i);
+		g_bFallSpeed[i] = false;
+		g_bInUse[i] = false;
 		g_iParachuteEntity[i] = -1;
 		g_bHasParachuteModel[i] = false;
 	}
@@ -243,10 +250,10 @@ public Action Command_Parachute(int client, int args)
 
 	if (!AreClientCookiesCached(client))
 	{
-		CReplyToCommand(client, "{green}[SM] {default}You have to be verified before using this command. {olive}Reconnect.");
+		CReplyToCommand(client, "{green}[SM] {default}Your settings (cookies) are not loaded yet. {olive}Please try this command again in a moment.");
 		return Plugin_Handled;
 	}
-	
+
 	OpenParachutesMenu(client);
 	return Plugin_Handled;
 }
@@ -258,14 +265,14 @@ void OpenParachutesMenu(int client)
 
 	Menu menu = new Menu(ParachuteMenu);
 	menu.SetTitle("Choose your parachute model.\nSelected: %s", g_sClientModel[client]);
-	
+
 	for (int i = 0; i < g_arParachutes.Length; i++)
 	{
 		ParachuteInfo info;
 		g_arParachutes.GetArray(i, info, sizeof(info));
 		menu.AddItem(info.name, info.name, (StrEqual(g_sClientModel[client], info.name)) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	}
-	
+
 	menu.ExitButton = true;
 	menu.Display(client, 32);
 }
@@ -278,7 +285,7 @@ int ParachuteMenu(Menu menu, MenuAction action, int param1, int param2)
 		{
 			delete menu;
 		}
-		
+
 		case MenuAction_Select:
 		{
 			char model[64];
@@ -289,7 +296,7 @@ int ParachuteMenu(Menu menu, MenuAction action, int param1, int param2)
 			OpenParachutesMenu(param1);
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -297,7 +304,7 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 {
 	if (IsFakeClient(client) || !IsPlayerAlive(client))
 		return;
-	
+
 	if (buttons & IN_USE)
 	{
 		if (!g_bInUse[client])
@@ -325,7 +332,7 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 void StartParachute(int client, bool open)
 {
 	float g_fVelocity[3];
-	if (g_iVelocity == -1) 
+	if (g_iVelocity == -1)
 		return;
 
 	GetEntDataVector(client, g_iVelocity, g_fVelocity);
@@ -333,7 +340,7 @@ void StartParachute(int client, bool open)
 	if (g_fVelocity[2] >= g_fFallSpeed)
 		g_bFallSpeed[client] = true;
 
-	if (g_fVelocity[2] < 0.0) 
+	if (g_fVelocity[2] < 0.0)
 	{
 		if ((g_bFallSpeed[client] && g_iLinear == 1) || g_fDecrease == 0.0)
 			g_fVelocity[2] = g_fFallSpeed;
@@ -343,7 +350,7 @@ void StartParachute(int client, bool open)
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, g_fVelocity);
 		SetEntDataVector(client, g_iVelocity, g_fVelocity);
 		SetEntityGravity(client, 0.1);
-		if (open) 
+		if (open)
 			OpenParachute(client);
 	}
 }
@@ -367,7 +374,7 @@ void OpenParachute(int client)
 			}
 		}
 	}
-	
+
 	g_iParachuteEntity[client] = CreateEntityByName("prop_dynamic_override");
 	DispatchKeyValue(g_iParachuteEntity[client], "model", info.model);
 	SetEntityMoveType(g_iParachuteEntity[client], MOVETYPE_NOCLIP);
@@ -395,13 +402,12 @@ void TeleportParachute(int client)
 					break;
 			}
 		}
-		
+
 		float g_fClient_Origin[3];
 		float g_fClient_Angles[3];
 		float g_fParachute_Angles[3];
 		GetClientAbsOrigin(client, g_fClient_Origin);
 		GetClientAbsAngles(client, g_fClient_Angles);
-		PrintToChatAll("info %f", info.z);
 		g_fClient_Origin[2] += info.z;
 		g_fParachute_Angles[0] = info.angles[0];
 		g_fParachute_Angles[1] = g_fClient_Angles[1] + info.angles[1];
@@ -431,6 +437,6 @@ void CheckClientLocation(int client)
 {
 	float g_fSpeed[3];
 	GetEntDataVector(client, g_iVelocity, g_fSpeed);
-	if (g_fSpeed[2] >= 0 || (GetEntityFlags(client) & FL_ONGROUND)) 
+	if (g_fSpeed[2] >= 0 || (GetEntityFlags(client) & FL_ONGROUND))
 		StopParachute(client);
 }
