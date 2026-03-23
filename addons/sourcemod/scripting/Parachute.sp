@@ -433,6 +433,7 @@ void CheckClientLocation(int client)
 
 	float velocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
-	if (velocity[2] >= 0.0 || (GetEntityFlags(client) & FL_ONGROUND))
+	int flags = GetEntityFlags(client);
+	if (velocity[2] >= 0.0 || (flags & FL_ONGROUND) || (flags & FL_INWATER) || GetEntityMoveType(client) == MOVETYPE_LADDER)
 		StopParachute(client);
 }
