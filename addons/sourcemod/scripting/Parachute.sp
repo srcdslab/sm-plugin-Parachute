@@ -74,7 +74,7 @@ public OnPluginStart()
 	g_cvParachuteLinear.AddChangeHook(OnConVarChanged);
 	g_cvParachuteDecrease.AddChangeHook(OnConVarChanged);
 
-	g_fFallSpeed = g_cvParachuteFallSpeed.FloatValue;
+	g_fFallSpeed = g_cvParachuteFallSpeed.FloatValue * -1.0;
 	g_iLinear = g_cvParachuteLinear.IntValue;
 	g_fDecrease = g_cvParachuteDecrease.FloatValue;
 
@@ -105,7 +105,7 @@ public OnPluginStart()
 void OnConVarChanged(ConVar convar, char[] oldValue, char[] newValue)
 {
 	if (convar == g_cvParachuteFallSpeed)
-		g_fFallSpeed = convar.FloatValue;
+		g_fFallSpeed = convar.FloatValue * -1.0;
 	else if (convar == g_cvParachuteLinear)
 		g_iLinear = convar.IntValue;
 	else
@@ -270,7 +270,7 @@ void OpenParachutesMenu(int client)
 	{
 		ParachuteInfo info;
 		g_arParachutes.GetArray(i, info, sizeof(info));
-		menu.AddItem(info.name, info.name, (StrEqual(g_sClientModel[client], info.name)) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
+		menu.AddItem(info.name, info.name, (strcmp(g_sClientModel[client], info.name) == 0) ? ITEMDRAW_DISABLED : ITEMDRAW_DEFAULT);
 	}
 
 	menu.ExitButton = true;
@@ -368,10 +368,8 @@ void OpenParachute(int client)
 		for (int i = 0; i < g_arParachutes.Length; i++)
 		{
 			g_arParachutes.GetArray(i, info, sizeof(info));
-			if (StrEqual(info.name, g_sClientModel[client]))
-			{
+			if (strcmp(info.name, g_sClientModel[client]) == 0)
 				break;
-			}
 		}
 	}
 
