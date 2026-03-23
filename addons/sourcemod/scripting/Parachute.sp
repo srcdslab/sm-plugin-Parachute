@@ -337,7 +337,7 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 void StartParachute(int client, bool open)
 {
 	float velocity[3];
-	GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 
 	if (velocity[2] >= g_fFallSpeed)
 		g_bFallSpeed[client] = true;
@@ -350,7 +350,7 @@ void StartParachute(int client, bool open)
 			velocity[2] = velocity[2] + g_fDecrease;
 
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
-		SetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+		SetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 		SetEntityGravity(client, 0.1);
 		if (open)
 			OpenParachute(client);
@@ -432,7 +432,7 @@ void CheckClientLocation(int client)
 		return;
 
 	float velocity[3];
-	GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 	if (velocity[2] >= 0.0 || (GetEntityFlags(client) & FL_ONGROUND))
 		StopParachute(client);
 }
