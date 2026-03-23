@@ -43,7 +43,6 @@ ConVar g_cvParachuteFallSpeed;
 ConVar g_cvParachuteLinear;
 ConVar g_cvParachuteDecrease;
 
-int g_iVelocity = -1;
 int g_iParachuteEntity[MAXPLAYERS+1];
 
 bool g_bFallSpeed[MAXPLAYERS +1] = {false, ...};
@@ -77,8 +76,6 @@ public OnPluginStart()
 	g_fFallSpeed = g_cvParachuteFallSpeed.FloatValue * -1.0;
 	g_iLinear = g_cvParachuteLinear.IntValue;
 	g_fDecrease = g_cvParachuteDecrease.FloatValue;
-
-	g_iVelocity = FindSendPropInfo("CBasePlayer", "m_vecVelocity[0]");
 
 	RegConsoleCmd("sm_parachute", Command_Parachute);
 	RegConsoleCmd("sm_para", Command_Parachute);
@@ -202,9 +199,15 @@ void ReadDownloadsFile()
 {
 	char FilePath[128];
 	BuildPath(Path_SM, FilePath, sizeof(FilePath), "configs/parachute_downloads.cfg");
-	Handle DlFile = OpenFile(FilePath, "r");
+	File DlFile = OpenFile(FilePath, "r");
+	if (DlFile == null)
+	{
+		SetFailState("[Parachute] Could not find the downloads file, stopping the plugin...");
+		return;
+	}
+
 	char Line[PLATFORM_MAX_PATH];
-	while(!IsEndOfFile(DlFile) && ReadFileLine(DlFile, Line, sizeof(Line)))
+	while(!DlFile.EndOfFile() && DlFile.ReadLine(Line, sizeof(Line)))
 	{
 		TrimString(Line);
 		AddFileToDownloadsTable(Line);
@@ -331,24 +334,21 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 
 void StartParachute(int client, bool open)
 {
-	float g_fVelocity[3];
-	if (g_iVelocity == -1)
-		return;
+	float velocity[3];
+	GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
 
-	GetEntDataVector(client, g_iVelocity, g_fVelocity);
-
-	if (g_fVelocity[2] >= g_fFallSpeed)
+	if (velocity[2] >= g_fFallSpeed)
 		g_bFallSpeed[client] = true;
 
-	if (g_fVelocity[2] < 0.0)
+	if (velocity[2] < 0.0)
 	{
 		if ((g_bFallSpeed[client] && g_iLinear == 1) || g_fDecrease == 0.0)
-			g_fVelocity[2] = g_fFallSpeed;
+			velocity[2] = g_fFallSpeed;
 		else
-			g_fVelocity[2] = g_fVelocity[2] + g_fDecrease;
+			velocity[2] = velocity[2] + g_fDecrease;
 
-		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, g_fVelocity);
-		SetEntDataVector(client, g_iVelocity, g_fVelocity);
+		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
+		SetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
 		SetEntityGravity(client, 0.1);
 		if (open)
 			OpenParachute(client);
@@ -433,8 +433,8 @@ void DeleteParachute(int client)
 
 void CheckClientLocation(int client)
 {
-	float g_fSpeed[3];
-	GetEntDataVector(client, g_iVelocity, g_fSpeed);
-	if (g_fSpeed[2] >= 0 || (GetEntityFlags(client) & FL_ONGROUND))
+	float velocity[3];
+	GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+	if (velocity[2] >= 0.0 || (GetEntityFlags(client) & FL_ONGROUND))
 		StopParachute(client);
 }
