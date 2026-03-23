@@ -16,6 +16,7 @@
 	KRoT@L
 	JTP10181
 	Dolly132
+	.Rushaway
 
     HAVE FUN!!!
 *******************************************************************************/
@@ -43,7 +44,7 @@ ConVar g_cvParachuteFallSpeed;
 ConVar g_cvParachuteLinear;
 ConVar g_cvParachuteDecrease;
 
-int g_iParachuteEntity[MAXPLAYERS+1];
+int g_iParachuteEntity[MAXPLAYERS+1] = {-1, ...};
 
 bool g_bFallSpeed[MAXPLAYERS +1] = {false, ...};
 bool g_bInUse[MAXPLAYERS+1] = {false, ...};
@@ -310,14 +311,15 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 
 	if (buttons & IN_USE)
 	{
+		bool justOpened = false;
 		if (!g_bInUse[client])
 		{
 			g_bInUse[client] = true;
 			g_bFallSpeed[client] = false;
-			StartParachute(client, true);
+			justOpened = true;
 		}
 
-		StartParachute(client, false);
+		StartParachute(client, justOpened);
 		TeleportParachute(client);
 	}
 	else
@@ -355,23 +357,28 @@ void StartParachute(int client, bool open)
 	}
 }
 
-void OpenParachute(int client)
+bool GetClientParachuteInfo(int client, ParachuteInfo info)
 {
 	if (!g_arParachutes || !g_arParachutes.Length)
+		return false;
+
+	for (int i = 0; i < g_arParachutes.Length; i++)
+	{
+		g_arParachutes.GetArray(i, info, sizeof(info));
+		if (!g_sClientModel[client][0] || strcmp(info.name, g_sClientModel[client]) == 0)
+			return true;
+	}
+	return false;
+}
+
+void OpenParachute(int client)
+{
+	if (g_bHasParachuteModel[client])
 		return;
 
 	ParachuteInfo info;
-	if (!g_sClientModel[client][0])
-		g_arParachutes.GetArray(0, info, sizeof(info));
-	else
-	{
-		for (int i = 0; i < g_arParachutes.Length; i++)
-		{
-			g_arParachutes.GetArray(i, info, sizeof(info));
-			if (strcmp(info.name, g_sClientModel[client]) == 0)
-				break;
-		}
-	}
+	if (!GetClientParachuteInfo(client, info))
+		return;
 
 	g_iParachuteEntity[client] = CreateEntityByName("prop_dynamic_override");
 	DispatchKeyValue(g_iParachuteEntity[client], "model", info.model);
@@ -383,35 +390,23 @@ void OpenParachute(int client)
 
 void TeleportParachute(int client)
 {
-	if (g_bHasParachuteModel[client] && IsValidEntity(g_iParachuteEntity[client]))
-	{
-		if (!g_arParachutes || !g_arParachutes.Length)
-			return;
+	if (!g_bHasParachuteModel[client] || !IsValidEntity(g_iParachuteEntity[client]))
+		return;
 
-		ParachuteInfo info;
-		if (!g_sClientModel[client][0])
-			g_arParachutes.GetArray(0, info, sizeof(info));
-		else
-		{
-			for (int i = 0; i < g_arParachutes.Length; i++)
-			{
-				g_arParachutes.GetArray(i, info, sizeof(info));
-				if (strcmp(info.name, g_sClientModel[client]) == 0)
-					break;
-			}
-		}
+	ParachuteInfo info;
+	if (!GetClientParachuteInfo(client, info))
+		return;
 
-		float g_fClient_Origin[3];
-		float g_fClient_Angles[3];
-		float g_fParachute_Angles[3];
-		GetClientAbsOrigin(client, g_fClient_Origin);
-		GetClientAbsAngles(client, g_fClient_Angles);
-		g_fClient_Origin[2] += info.z;
-		g_fParachute_Angles[0] = info.angles[0];
-		g_fParachute_Angles[1] = g_fClient_Angles[1] + info.angles[1];
-		g_fParachute_Angles[2] = info.angles[2];
-		TeleportEntity(g_iParachuteEntity[client], g_fClient_Origin, g_fParachute_Angles, NULL_VECTOR);
-	}
+	float origin[3];
+	float clientAngles[3];
+	float parachuteAngles[3];
+	GetClientAbsOrigin(client, origin);
+	GetClientAbsAngles(client, clientAngles);
+	origin[2] += info.z;
+	parachuteAngles[0] = info.angles[0];
+	parachuteAngles[1] = clientAngles[1] + info.angles[1];
+	parachuteAngles[2] = info.angles[2];
+	TeleportEntity(g_iParachuteEntity[client], origin, parachuteAngles, NULL_VECTOR);
 }
 
 void StopParachute(int client)
@@ -433,6 +428,9 @@ void DeleteParachute(int client)
 
 void CheckClientLocation(int client)
 {
+	if (!g_bInUse[client] && !g_bHasParachuteModel[client])
+		return;
+
 	float velocity[3];
 	GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
 	if (velocity[2] >= 0.0 || (GetEntityFlags(client) & FL_ONGROUND))
