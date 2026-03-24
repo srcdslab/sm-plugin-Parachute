@@ -1,9 +1,9 @@
 /*******************************************************************************
-  SM Parachute - Author: SWAT_88
-  Copyright: Everybody can edit this plugin and copy this plugin.
+ SM Parachute - Author: SWAT_88
+Copyright: Everybody can edit this plugin and copy this plugin.
 
-  Thanks to:
-  Greyscale, Pinkfairie, bl4nk, theY4Kman, Knagg0, KRoT@L, JTP10181, Dolly132, .Rushaway
+Thanks to:
+Greyscale, Pinkfairie, bl4nk, theY4Kman, Knagg0, KRoT@L, JTP10181, Dolly132, .Rushaway
 *******************************************************************************/
 
 #include <sourcemod>
@@ -13,28 +13,28 @@
 
 enum struct ParachuteInfo
 {
-    char name[64];
-    char model[PLATFORM_MAX_PATH];
-    float z;
-    float angles[3];
+	char name[64];
+	char model[PLATFORM_MAX_PATH];
+	float z;
+	float angles[3];
 }
 
 enum struct Parachute
 {
-    int entRef;
-    bool active;
-    bool fallSpeed;
-    float z;
-    float angles[3];
+	int entRef;
+	bool active;
+	bool fallSpeed;
+	float z;
+	float angles[3];
 
-    void Reset()
-    {
-        this.entRef = INVALID_ENT_REFERENCE;
-        this.active = false;
-        this.fallSpeed = false;
-        this.z = 0.0;
-        this.angles[0] = this.angles[1] = this.angles[2] = 0.0;
-    }
+	void Reset()
+	{
+		this.entRef = INVALID_ENT_REFERENCE;
+		this.active = false;
+		this.fallSpeed = false;
+		this.z = 0.0;
+		this.angles[0] = this.angles[1] = this.angles[2] = 0.0;
+	}
 
 	void SetActive()
 	{
@@ -48,11 +48,11 @@ enum struct Parachute
 		this.fallSpeed = false;
 	}
 
-    int GetEntity()
-    {
-        int ent = EntRefToEntIndex(this.entRef);
-        return (ent > 0 && IsValidEntity(ent)) ? ent : -1;
-    }
+	int GetEntity()
+	{
+		int ent = EntRefToEntIndex(this.entRef);
+		return (ent > 0 && IsValidEntity(ent)) ? ent : -1;
+	}
 }
 
 Parachute g_Para[MAXPLAYERS + 1];
@@ -85,57 +85,57 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public OnPluginStart()
 {
-    g_cvFallSpeed = CreateConVar("sm_parachute_fallspeed", "100", "Speed of the fall when you use the parachute");
-    g_cvLinear = CreateConVar("sm_parachute_linear", "1", "0: disables linear fallspeed - 1: enables it", FCVAR_NONE, true, 0.0, true, 1.0);
-    g_cvDecrease = CreateConVar("sm_parachute_decrease", "50", "0: dont use Realistic velocity-decrease - x: sets the velocity-decrease");
+	g_cvFallSpeed = CreateConVar("sm_parachute_fallspeed", "100", "Speed of the fall when you use the parachute");
+	g_cvLinear = CreateConVar("sm_parachute_linear", "1", "0: disables linear fallspeed - 1: enables it", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvDecrease = CreateConVar("sm_parachute_decrease", "50", "0: dont use Realistic velocity-decrease - x: sets the velocity-decrease");
 
-    g_cvFallSpeed.AddChangeHook(OnConVarChanged);
-    g_cvLinear.AddChangeHook(OnConVarChanged);
-    g_cvDecrease.AddChangeHook(OnConVarChanged);
+	g_cvFallSpeed.AddChangeHook(OnConVarChanged);
+	g_cvLinear.AddChangeHook(OnConVarChanged);
+	g_cvDecrease.AddChangeHook(OnConVarChanged);
 
-    g_fFallSpeed = g_cvFallSpeed.FloatValue * -1.0;
-    g_iLinear = g_cvLinear.IntValue;
-    g_fDecrease = g_cvDecrease.FloatValue;
+	g_fFallSpeed = g_cvFallSpeed.FloatValue * -1.0;
+	g_iLinear = g_cvLinear.IntValue;
+	g_fDecrease = g_cvDecrease.FloatValue;
 
-    RegConsoleCmd("sm_parachute", Command_Parachute);
-    RegConsoleCmd("sm_para", Command_Parachute);
-    RegConsoleCmd("sm_pchute", Command_Parachute);
+	RegConsoleCmd("sm_parachute", Command_Parachute);
+	RegConsoleCmd("sm_para", Command_Parachute);
+	RegConsoleCmd("sm_pchute", Command_Parachute);
 
-    HookEvent("player_death", Event_OnPlayerDeath);
-    HookEvent("round_start", Event_OnRoundStart);
-    HookEvent("round_end", Event_OnRoundEnd);
-    HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Post);
+	HookEvent("player_death", Event_OnPlayerDeath);
+	HookEvent("round_start", Event_OnRoundStart);
+	HookEvent("round_end", Event_OnRoundEnd);
+	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Post);
 
-    AutoExecConfig(true);
+	AutoExecConfig(true);
 
-    g_arParachutes = new ArrayList(sizeof(ParachuteInfo));
-    g_hCookie = new Cookie("parachute_cookie", "Parachute model cookie for client", CookieAccess_Private);
+	g_arParachutes = new ArrayList(sizeof(ParachuteInfo));
+	g_hCookie = new Cookie("parachute_cookie", "Parachute model cookie for client", CookieAccess_Private);
 
-    if (!g_bLate)
+	if (!g_bLate)
 		return;
 
-    PrecacheModels();
+	PrecacheModels();
 
-    for (int i = 1; i <= MaxClients; i++)
-    {
-        if (!IsClientInGame(i) || !AreClientCookiesCached(i) || IsFakeClient(i))
-            continue;
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || !AreClientCookiesCached(i) || IsFakeClient(i))
+			continue;
 
-        OnClientCookiesCached(i);
+		OnClientCookiesCached(i);
 
-        if (IsPlayerAlive(i))
-            CreateParachute(i);
-    }
+		if (IsPlayerAlive(i))
+			CreateParachute(i);
+	}
 }
 
 void OnConVarChanged(ConVar convar, char[] oldValue, char[] newValue)
 {
-    if (convar == g_cvFallSpeed)
-        g_fFallSpeed = convar.FloatValue * -1.0;
-    else if (convar == g_cvLinear)
-        g_iLinear = convar.IntValue;
-    else
-        g_fDecrease = g_cvDecrease.FloatValue;
+	if (convar == g_cvFallSpeed)
+		g_fFallSpeed = convar.FloatValue * -1.0;
+	else if (convar == g_cvLinear)
+		g_iLinear = convar.IntValue;
+	else
+		g_fDecrease = g_cvDecrease.FloatValue;
 }
 
 public void OnClientPutInServer(int client)
