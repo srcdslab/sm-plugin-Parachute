@@ -340,6 +340,9 @@ int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			FormatEx(g_sClientModel[param1], sizeof(g_sClientModel[]), model);
 			g_hCookie.Set(param1, model);
 			CPrintToChat(param1, "{green}[SM] {default}You have changed your {olive}Parachute model {lightgreen}to %s", model);
+			if (IsPlayerAlive(param1))
+				CreateParachute(param1);
+
 			OpenParachutesMenu(param1);
 		}
 	}
