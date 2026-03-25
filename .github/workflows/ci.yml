@@ -26,7 +26,7 @@ jobs:
           cp -R .sourceknight/package/* /tmp/package
           cp -R materials /tmp/package/common/
           cp -R models /tmp/package/common/
-          cp -R addons/sourcemod/configs /tmp/package/addons/sourcemod/
+          cp -R addons/sourcemod/configs /tmp/package/common/addons/sourcemod/
 
       - name: Upload build archive for test runners
         uses: actions/upload-artifact@v7
