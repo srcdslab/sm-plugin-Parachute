@@ -454,7 +454,7 @@ void CreateParachute(int client)
 
 	strcopy(g_Para[client].model, sizeof(g_Para[].model), info.model);
 
-	int ent = CreateEntityByName("prop_dynamic");
+	int ent = CreateEntityByName("prop_dynamic_override");
 	if ((g_Para[client].entRef = EntIndexToEntRef(ent)) == INVALID_ENT_REFERENCE)
 		return;
 
@@ -483,7 +483,7 @@ void DeleteParachute(int client)
 	char sClassName[64];
 	GetEntityClassname(iParachuteEntity, sClassName, sizeof(sClassName));
 
-	if (!StrEqual(sClassName, "prop_dynamic"))
+	if (StrContains(sClassName, "prop_dynamic", false) == -1)
 	{
 		char sTargetName[64];
 		GetEntPropString(iParachuteEntity, Prop_Data, "m_iName", sTargetName, sizeof(sTargetName));
