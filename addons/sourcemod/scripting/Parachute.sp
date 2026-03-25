@@ -1,24 +1,9 @@
 /*******************************************************************************
-    SM Parachute
-    Author: SWAT_88
+ SM Parachute - Author: SWAT_88
+Copyright: Everybody can edit this plugin and copy this plugin.
 
-    Copyright:
-
-    Everybody can edit this plugin and copy this plugin.
-
-    Thanks to:
-
-	Greyscale
-	Pinkfairie
-	bl4nk
-	theY4Kman
-	Knagg0
-	KRoT@L
-	JTP10181
-	Dolly132
-	.Rushaway
-
-    HAVE FUN!!!
+Thanks to:
+Greyscale, Pinkfairie, bl4nk, theY4Kman, Knagg0, KRoT@L, JTP10181, Dolly132, .Rushaway
 *******************************************************************************/
 
 #include <sourcemod>
@@ -34,85 +19,140 @@ enum struct ParachuteInfo
 	float angles[3];
 }
 
-ArrayList g_arParachutes;
+enum struct Parachute
+{
+	int entRef;
+	bool active;
+	bool fallSpeed;
+	float z;
+	float angles[3];
+	char model[PLATFORM_MAX_PATH];
 
+	void Reset()
+	{
+		this.entRef = INVALID_ENT_REFERENCE;
+		this.active = false;
+		this.fallSpeed = false;
+		this.z = 0.0;
+		this.angles[0] = this.angles[1] = this.angles[2] = 0.0;
+		this.model[0] = '\0';
+	}
+
+	void SetActive()
+	{
+		this.active = true;
+		this.fallSpeed = false;
+	}
+
+	void SetInactive()
+	{
+		this.active = false;
+		this.fallSpeed = false;
+	}
+
+	int GetEntity()
+	{
+		int ent = EntRefToEntIndex(this.entRef);
+		return (ent > 0 && IsValidEntity(ent)) ? ent : -1;
+	}
+}
+
+Parachute g_Para[MAXPLAYERS + 1];
+ArrayList g_arParachutes;
 Cookie g_hCookie;
+ConVar g_cvFallSpeed;
+ConVar g_cvLinear;
+ConVar g_cvDecrease;
 
 char g_sClientModel[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
-
-ConVar g_cvParachuteFallSpeed;
-ConVar g_cvParachuteLinear;
-ConVar g_cvParachuteDecrease;
-
-int g_iParachuteEntity[MAXPLAYERS+1] = {-1, ...};
-
-bool g_bFallSpeed[MAXPLAYERS +1] = {false, ...};
-bool g_bInUse[MAXPLAYERS+1] = {false, ...};
-bool g_bHasParachuteModel[MAXPLAYERS+1] = {false, ...};
-
-/* ConVar cache values */
 float g_fFallSpeed;
-int g_iLinear;
 float g_fDecrease;
+bool g_bLate;
+int g_iLinear;
 
 public Plugin myinfo =
 {
 	name = "SM Parachute",
 	author = "SWAT_88",
 	description = "Adds a parachute with low gravity when you hold the use key",
-	version = "2.6.0",
+	version = "2.7.0",
 	url = "http://www.sourcemod.net/"
 };
 
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	g_bLate = late;
+	return APLRes_Success;
+}
+
 public OnPluginStart()
 {
-	g_cvParachuteFallSpeed = CreateConVar("sm_parachute_fallspeed", "100", "Speed of the fall when you use the parachute");
-	g_cvParachuteLinear = CreateConVar("sm_parachute_linear", "1", "0: disables linear fallspeed - 1: enables it");
-	g_cvParachuteDecrease = CreateConVar("sm_parachute_decrease", "50", "0: dont use Realistic velocity-decrease - x: sets the velocity-decrease");
+	g_cvFallSpeed = CreateConVar("sm_parachute_fallspeed", "100", "Speed of the fall when you use the parachute");
+	g_cvLinear = CreateConVar("sm_parachute_linear", "1", "0: disables linear fallspeed - 1: enables it", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_cvDecrease = CreateConVar("sm_parachute_decrease", "50", "0: dont use Realistic velocity-decrease - x: sets the velocity-decrease");
 
-	g_cvParachuteFallSpeed.AddChangeHook(OnConVarChanged);
-	g_cvParachuteLinear.AddChangeHook(OnConVarChanged);
-	g_cvParachuteDecrease.AddChangeHook(OnConVarChanged);
+	g_cvFallSpeed.AddChangeHook(OnConVarChanged);
+	g_cvLinear.AddChangeHook(OnConVarChanged);
+	g_cvDecrease.AddChangeHook(OnConVarChanged);
 
-	g_fFallSpeed = g_cvParachuteFallSpeed.FloatValue * -1.0;
-	g_iLinear = g_cvParachuteLinear.IntValue;
-	g_fDecrease = g_cvParachuteDecrease.FloatValue;
+	g_fFallSpeed = g_cvFallSpeed.FloatValue * -1.0;
+	g_iLinear = g_cvLinear.IntValue;
+	g_fDecrease = g_cvDecrease.FloatValue;
 
 	RegConsoleCmd("sm_parachute", Command_Parachute);
 	RegConsoleCmd("sm_para", Command_Parachute);
 	RegConsoleCmd("sm_pchute", Command_Parachute);
 
-	HookEvent("player_death", PlayerDeath);
-	HookEvent("round_end", RoundEnd);
+	HookEvent("player_death", Event_OnPlayerDeath);
+	HookEvent("round_start", Event_OnRoundStart);
+	HookEvent("round_end", Event_OnRoundEnd);
+	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Post);
 
 	AutoExecConfig(true);
 
 	g_arParachutes = new ArrayList(sizeof(ParachuteInfo));
-
 	g_hCookie = new Cookie("parachute_cookie", "Parachute model cookie for client", CookieAccess_Private);
+
+	if (!g_bLate)
+		return;
+
+	PrecacheModels();
 
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || !AreClientCookiesCached(i))
+		if (!IsClientInGame(i) || !AreClientCookiesCached(i) || IsFakeClient(i))
 			continue;
 
 		OnClientCookiesCached(i);
+
+		if (IsPlayerAlive(i))
+			CreateParachute(i);
 	}
 }
 
 void OnConVarChanged(ConVar convar, char[] oldValue, char[] newValue)
 {
-	if (convar == g_cvParachuteFallSpeed)
+	if (convar == g_cvFallSpeed)
 		g_fFallSpeed = convar.FloatValue * -1.0;
-	else if (convar == g_cvParachuteLinear)
+	else if (convar == g_cvLinear)
 		g_iLinear = convar.IntValue;
 	else
-		g_fDecrease = g_cvParachuteDecrease.FloatValue;
+		g_fDecrease = g_cvDecrease.FloatValue;
+}
+
+public void OnClientPutInServer(int client)
+{
+	g_Para[client].Reset();
+}
+
+public void OnClientDisconnect(int client)
+{
+	DeleteParachute(client);
 }
 
 public void OnClientCookiesCached(int client)
 {
-	if (!g_arParachutes || !g_arParachutes.Length)
+	if (!g_arParachutes.Length)
 		return;
 
 	char cookieValue[64];
@@ -132,7 +172,6 @@ public void OnClientCookiesCached(int client)
 		}
 	}
 
-	// Dont set cookie if no cookie was found. Use default parachute model instead.
 	ParachuteInfo info;
 	g_arParachutes.GetArray(0, info, sizeof(info));
 	FormatEx(g_sClientModel[client], sizeof(g_sClientModel[]), info.name);
@@ -182,11 +221,7 @@ void PrecacheModels()
 			info.angles[2] = StringToFloat(explodedAngles[2]);
 		}
 		else
-		{
-			info.angles[0] = 0.0;
-			info.angles[1] = 0.0;
-			info.angles[2] = 0.0;
-		}
+			info.angles[0] = info.angles[1] = info.angles[2] = 0.0;
 
 		PrecacheModel(info.model);
 
@@ -217,40 +252,53 @@ void ReadDownloadsFile()
 	delete DlFile;
 }
 
-public void OnClientDisconnect(int client)
-{
-	DeleteParachute(client);
-	g_bFallSpeed[client] = false;
-	g_bInUse[client] = false;
-	g_sClientModel[client][0] = '\0';
-}
-
-public void PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+public void Event_OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
+	if (!client || !IsClientInGame(client) || IsFakeClient(client))
+		return;
+
 	StopParachute(client);
 }
 
-public void RoundEnd(Event event, const char[] name, bool dontBroadcast)
+public void Event_OnRoundStart(Event event, const char[] name, bool dontBroadcast)
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
+
+		CreateParachute(i);
+	}
+}
+
+public void Event_OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))
 			continue;
-		
-		StopParachute(i);
+
 		DeleteParachute(i);
-		g_bFallSpeed[i] = false;
-		g_bInUse[i] = false;
-		g_iParachuteEntity[i] = -1;
-		g_bHasParachuteModel[i] = false;
 	}
+}
+
+public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if (!client || !IsClientInGame(client) || IsFakeClient(client))
+		return;
+
+	CreateParachute(client);
 }
 
 public Action Command_Parachute(int client, int args)
 {
 	if (!client)
+	{
+		CReplyToCommand(client, "{green}[SM] {default}This command cannot be used from the server console.");
 		return Plugin_Handled;
+	}
 
 	if (!AreClientCookiesCached(client))
 	{
@@ -264,10 +312,10 @@ public Action Command_Parachute(int client, int args)
 
 void OpenParachutesMenu(int client)
 {
-	if (!g_arParachutes || !g_arParachutes.Length)
+	if (!g_arParachutes.Length)
 		return;
 
-	Menu menu = new Menu(ParachuteMenu);
+	Menu menu = new Menu(ParachutesMenuHandler);
 	menu.SetTitle("Choose your parachute model.\nSelected: %s", g_sClientModel[client]);
 
 	for (int i = 0; i < g_arParachutes.Length; i++)
@@ -281,15 +329,12 @@ void OpenParachutesMenu(int client)
 	menu.Display(client, 32);
 }
 
-int ParachuteMenu(Menu menu, MenuAction action, int param1, int param2)
+int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch(action)
 	{
 		case MenuAction_End:
-		{
 			delete menu;
-		}
-
 		case MenuAction_Select:
 		{
 			char model[64];
@@ -297,6 +342,9 @@ int ParachuteMenu(Menu menu, MenuAction action, int param1, int param2)
 			FormatEx(g_sClientModel[param1], sizeof(g_sClientModel[]), model);
 			g_hCookie.Set(param1, model);
 			CPrintToChat(param1, "{green}[SM] {default}You have changed your {olive}Parachute model {lightgreen}to %s", model);
+			if (IsPlayerAlive(param1))
+				CreateParachute(param1);
+
 			OpenParachutesMenu(param1);
 		}
 	}
@@ -309,57 +357,82 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 	if (IsFakeClient(client) || !IsPlayerAlive(client))
 		return;
 
-	if (buttons & IN_USE)
-	{
-		bool justOpened = false;
-		if (!g_bInUse[client])
-		{
-			g_bInUse[client] = true;
-			g_bFallSpeed[client] = false;
-			justOpened = true;
-		}
+	// FAILSAFE: Gravity Exploit
+	if (!g_Para[client].active)
+		SetEntityGravity(client, 1.0);
 
-		StartParachute(client, justOpened);
-		TeleportParachute(client);
-	}
-	else
+	if (GetEntityMoveType(client) == MOVETYPE_LADDER)
 	{
-		if (g_bInUse[client])
-		{
-			g_bInUse[client] = false;
+		if (g_Para[client].active)
 			StopParachute(client);
-		}
+		return;
 	}
 
-	CheckClientLocation(client);
-}
+	int flags = GetEntityFlags(client);
 
-void StartParachute(int client, bool open)
-{
+	if (g_Para[client].active)
+	{
+		if (!(buttons & IN_USE) || (flags & FL_ONGROUND) || (flags & FL_INWATER))
+		{
+			StopParachute(client);
+			return;
+		}
+
+		float velocity[3];
+		GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
+
+		if (velocity[2] >= 0.0)
+		{
+			StopParachute(client);
+			return;
+		}
+
+		UpdateParachute(client, velocity);
+		TeleportParachute(client);
+		return;
+	}
+
+	if (!(buttons & IN_USE))
+		return;
+
+	if ((flags & FL_ONGROUND) || (flags & FL_INWATER))
+		return;
+
 	float velocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 
-	if (velocity[2] >= g_fFallSpeed)
-		g_bFallSpeed[client] = true;
+	if (velocity[2] >= 0.0)
+		return;
 
-	if (velocity[2] < 0.0)
-	{
-		if ((g_bFallSpeed[client] && g_iLinear == 1) || g_fDecrease == 0.0)
-			velocity[2] = g_fFallSpeed;
-		else
-			velocity[2] = velocity[2] + g_fDecrease;
-
-		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
-		SetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
-		SetEntityGravity(client, 0.1);
-		if (open)
-			OpenParachute(client);
-	}
+	g_Para[client].SetActive();
+	UpdateParachute(client, velocity);
+	DisplayParachute(client);
+	TeleportParachute(client);
 }
 
+void UpdateParachute(int client, float velocity[3])
+{
+	float targetVelZ;
+
+	if (velocity[2] >= g_fFallSpeed)
+		g_Para[client].fallSpeed = true;
+
+	if ((g_Para[client].fallSpeed && g_iLinear == 1) || g_fDecrease == 0.0)
+		targetVelZ = g_fFallSpeed;
+	else
+		targetVelZ = velocity[2] + g_fDecrease;
+
+	if (FloatAbs(velocity[2] - targetVelZ) > 0.5)
+	{
+		velocity[2] = targetVelZ;
+		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
+	}
+
+	SetEntityGravity(client, 0.1);
+}
 bool GetClientParachuteInfo(int client, ParachuteInfo info)
 {
-	if (!g_arParachutes || !g_arParachutes.Length)
+	if (!g_arParachutes.Length)
 		return false;
 
 	for (int i = 0; i < g_arParachutes.Length; i++)
@@ -371,69 +444,109 @@ bool GetClientParachuteInfo(int client, ParachuteInfo info)
 	return false;
 }
 
-void OpenParachute(int client)
+void CreateParachute(int client)
 {
-	if (g_bHasParachuteModel[client])
-		return;
+	DeleteParachute(client);
 
 	ParachuteInfo info;
 	if (!GetClientParachuteInfo(client, info))
 		return;
 
-	g_iParachuteEntity[client] = CreateEntityByName("prop_dynamic_override");
-	DispatchKeyValue(g_iParachuteEntity[client], "model", info.model);
-	SetEntityMoveType(g_iParachuteEntity[client], MOVETYPE_NOCLIP);
-	DispatchSpawn(g_iParachuteEntity[client]);
-	g_bHasParachuteModel[client] = true;
-	TeleportParachute(client);
+	strcopy(g_Para[client].model, sizeof(g_Para[].model), info.model);
+
+	int ent = CreateEntityByName("prop_dynamic_override");
+	if ((g_Para[client].entRef = EntIndexToEntRef(ent)) == INVALID_ENT_REFERENCE)
+		return;
+
+	g_Para[client].z = info.z;
+	g_Para[client].angles = info.angles;
+
+	DispatchKeyValue(ent, "model", info.model);
+	DispatchKeyValue(ent, "fademindist", "-1");
+	DispatchKeyValue(ent, "fademaxdist", "0");
+	DispatchKeyValue(ent, "targetname", "parachute_prop");
+	DispatchKeyValue(ent, "OnUser1", "!self,TurnOn,0,-1");
+	DispatchKeyValue(ent, "OnUser2", "!self,TurnOff,0,-1");
+	SetEntityMoveType(ent, MOVETYPE_NOCLIP);
+	DispatchSpawn(ent);
+}
+
+void DeleteParachute(int client)
+{
+	int iParachuteEntity = g_Para[client].GetEntity();
+	if (iParachuteEntity == -1)
+	{
+		g_Para[client].Reset();
+		return;
+	}
+
+	char sClassName[64];
+	GetEntityClassname(iParachuteEntity, sClassName, sizeof(sClassName));
+
+	if (StrContains(sClassName, "prop_dynamic", false) == -1)
+	{
+		char sTargetName[64];
+		GetEntPropString(iParachuteEntity, Prop_Data, "m_iName", sTargetName, sizeof(sTargetName));
+		LogError("Blocked delete of invalid entity %d (%s - %s) for %L", iParachuteEntity, sClassName, sTargetName, client);
+		g_Para[client].Reset();
+		return;
+	}
+
+	char sModel[PLATFORM_MAX_PATH];
+	GetEntPropString(iParachuteEntity, Prop_Data, "m_ModelName", sModel, sizeof(sModel));
+
+	if (g_Para[client].model[0] && strcmp(sModel, g_Para[client].model, false) != 0)
+		LogError("Model mismatch but removing anyway (%s != %s) for %L", sModel, g_Para[client].model, client);
+
+	AcceptEntityInput(iParachuteEntity, "Kill");
+
+	SetEntityGravity(client, 1.0);
+	g_Para[client].Reset();
+}
+
+void DisplayParachute(int client)
+{
+	int iEnt = g_Para[client].GetEntity();
+	if (iEnt == -1)
+		return;
+
+	AcceptEntityInput(iEnt, "FireUser1");
+}
+
+void HideParachute(int client)
+{
+	int iEnt = g_Para[client].GetEntity();
+	if (iEnt == -1)
+		return;
+
+	AcceptEntityInput(iEnt, "FireUser2");
 }
 
 void TeleportParachute(int client)
 {
-	if (!g_bHasParachuteModel[client] || !IsValidEntity(g_iParachuteEntity[client]))
-		return;
-
-	ParachuteInfo info;
-	if (!GetClientParachuteInfo(client, info))
+	int iEnt = g_Para[client].GetEntity();
+	if (iEnt == -1)
 		return;
 
 	float origin[3];
 	float clientAngles[3];
 	float parachuteAngles[3];
+
 	GetClientAbsOrigin(client, origin);
 	GetClientAbsAngles(client, clientAngles);
-	origin[2] += info.z;
-	parachuteAngles[0] = info.angles[0];
-	parachuteAngles[1] = clientAngles[1] + info.angles[1];
-	parachuteAngles[2] = info.angles[2];
-	TeleportEntity(g_iParachuteEntity[client], origin, parachuteAngles, NULL_VECTOR);
+
+	origin[2] += g_Para[client].z;
+
+	parachuteAngles[0] = g_Para[client].angles[0];
+	parachuteAngles[1] = clientAngles[1] + g_Para[client].angles[1];
+	parachuteAngles[2] = g_Para[client].angles[2];
+
+	TeleportEntity(iEnt, origin, parachuteAngles, NULL_VECTOR);
 }
 
 void StopParachute(int client)
 {
 	SetEntityGravity(client, 1.0);
-	g_bInUse[client] = false;
-	g_bFallSpeed[client] = false;
-	DeleteParachute(client);
-}
-
-void DeleteParachute(int client)
-{
-	if (g_bHasParachuteModel[client] && IsValidEntity(g_iParachuteEntity[client]))
-	{
-		AcceptEntityInput(g_iParachuteEntity[client], "Kill");
-		g_bHasParachuteModel[client] = false;
-	}
-}
-
-void CheckClientLocation(int client)
-{
-	if (!g_bInUse[client] && !g_bHasParachuteModel[client])
-		return;
-
-	float velocity[3];
-	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
-	int flags = GetEntityFlags(client);
-	if (velocity[2] >= 0.0 || (flags & FL_ONGROUND) || (flags & FL_INWATER) || GetEntityMoveType(client) == MOVETYPE_LADDER)
-		StopParachute(client);
+	g_Para[client].SetInactive();
+	HideParachute(client);
 }
