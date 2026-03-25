@@ -26,6 +26,7 @@ enum struct Parachute
 	bool fallSpeed;
 	float z;
 	float angles[3];
+	char model[PLATFORM_MAX_PATH];
 
 	void Reset()
 	{
@@ -34,6 +35,7 @@ enum struct Parachute
 		this.fallSpeed = false;
 		this.z = 0.0;
 		this.angles[0] = this.angles[1] = this.angles[2] = 0.0;
+		this.model[0] = '\0';
 	}
 
 	void SetActive()
@@ -352,26 +354,26 @@ int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 
 public void OnPlayerRunCmdPost(int client, int buttons)
 {
-	if (!(buttons & IN_USE) && !g_Para[client].active)
+	if (IsFakeClient(client) || !IsPlayerAlive(client))
 		return;
 
-	if (!IsPlayerAlive(client))
+	// FAILSAFE: Gravity Exploit
+	if (!g_Para[client].active)
+		SetEntityGravity(client, 1.0);
+
+	if (GetEntityMoveType(client) == MOVETYPE_LADDER)
+	{
+		if (g_Para[client].active)
+			StopParachute(client);
 		return;
+	}
 
 	int flags = GetEntityFlags(client);
 
-	// Stop parachute if conditions met
 	if (g_Para[client].active)
 	{
 		if (!(buttons & IN_USE) || (flags & FL_ONGROUND) || (flags & FL_INWATER))
 		{
-			StopParachute(client);
-			return;
-		}
-
-		if (GetEntityMoveType(client) == MOVETYPE_LADDER)
-		{
-			CreateTimer(0.5, Timer_StopParachute, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 			StopParachute(client);
 			return;
 		}
@@ -390,8 +392,10 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 		return;
 	}
 
-	// Activate parachute if falling
-	if ((flags & FL_ONGROUND) || (flags & FL_INWATER) || GetEntityMoveType(client) == MOVETYPE_LADDER)
+	if (!(buttons & IN_USE))
+		return;
+
+	if ((flags & FL_ONGROUND) || (flags & FL_INWATER))
 		return;
 
 	float velocity[3];
@@ -448,7 +452,9 @@ void CreateParachute(int client)
 	if (!GetClientParachuteInfo(client, info))
 		return;
 
-	int ent = CreateEntityByName("prop_dynamic_override");
+	strcopy(g_Para[client].model, sizeof(g_Para[].model), info.model);
+
+	int ent = CreateEntityByName("prop_dynamic");
 	if ((g_Para[client].entRef = EntIndexToEntRef(ent)) == INVALID_ENT_REFERENCE)
 		return;
 
@@ -474,23 +480,27 @@ void DeleteParachute(int client)
 		return;
 	}
 
-	// We always verify the entity we are going to remove
-	char sModel[128];
-	GetEntPropString(iParachuteEntity, Prop_Data, "m_ModelName", sModel, sizeof(sModel));
+	char sClassName[64];
+	GetEntityClassname(iParachuteEntity, sClassName, sizeof(sClassName));
 
-	// Something went wrong, we should not remove this entity
-	if (strcmp(sModel, g_sClientModel[client], false) != 0)
+	if (!StrEqual(sClassName, "prop_dynamic"))
 	{
-		char sClassName[64];
-		GetEntityClassname(iParachuteEntity, sClassName, sizeof(sClassName));
-		LogError("Blocked attempt to remove invalid entity %d (%s) for %L", iParachuteEntity, sClassName, client);
+		char sTargetName[64];
+		GetEntPropString(iParachuteEntity, Prop_Data, "m_iName", sTargetName, sizeof(sTargetName));
+		LogError("Blocked delete of invalid entity %d (%s - %s) for %L", iParachuteEntity, sClassName, sTargetName, client);
+		g_Para[client].Reset();
 		return;
 	}
 
-	// All checks passed, we can remove the entity
-	AcceptEntityInput(iParachuteEntity, "Kill");
-	SetEntityGravity(client, 1.0);
+	char sModel[PLATFORM_MAX_PATH];
+	GetEntPropString(iParachuteEntity, Prop_Data, "m_ModelName", sModel, sizeof(sModel));
 
+	if (g_Para[client].model[0] && strcmp(sModel, g_Para[client].model, false) != 0)
+		LogError("Model mismatch but removing anyway (%s != %s) for %L", sModel, g_Para[client].model, client);
+
+	AcceptEntityInput(iParachuteEntity, "Kill");
+
+	SetEntityGravity(client, 1.0);
 	g_Para[client].Reset();
 }
 
@@ -539,14 +549,4 @@ void StopParachute(int client)
 	SetEntityGravity(client, 1.0);
 	g_Para[client].SetInactive();
 	HideParachute(client);
-}
-
-public Action Timer_StopParachute(Handle timer, int userid)
-{
-	int client = GetClientOfUserId(userid);
-	if (!client || !IsClientInGame(client))
-		return Plugin_Stop;
-
-	StopParachute(client);
-	return Plugin_Stop;
 }
