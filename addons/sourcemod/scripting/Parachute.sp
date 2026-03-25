@@ -75,7 +75,7 @@ public Plugin myinfo =
 	name = "SM Parachute",
 	author = "SWAT_88",
 	description = "Adds a parachute with low gravity when you hold the use key",
-	version = "2.7.0",
+	version = "2.7.1",
 	url = "http://www.sourcemod.net/"
 };
 
@@ -343,7 +343,7 @@ int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			g_hCookie.Set(param1, model);
 			CPrintToChat(param1, "{green}[SM] {default}You have changed your {olive}Parachute model {lightgreen}to %s", model);
 			if (IsPlayerAlive(param1))
-				CreateParachute(param1);
+				UpdateParachuteModelLive(param1);
 
 			OpenParachutesMenu(param1);
 		}
@@ -458,6 +458,9 @@ void CreateParachute(int client)
 	if ((g_Para[client].entRef = EntIndexToEntRef(ent)) == INVALID_ENT_REFERENCE)
 		return;
 
+	char sSetModel[256];
+	FormatEx(sSetModel, sizeof(sSetModel), "!self,SetModel %s,0,-1", info.model);
+
 	g_Para[client].z = info.z;
 	g_Para[client].angles = info.angles;
 
@@ -467,6 +470,7 @@ void CreateParachute(int client)
 	DispatchKeyValue(ent, "targetname", "parachute_prop");
 	DispatchKeyValue(ent, "OnUser1", "!self,TurnOn,0,-1");
 	DispatchKeyValue(ent, "OnUser2", "!self,TurnOff,0,-1");
+	DispatchKeyValue(ent, "OnUser3", sSetModel);
 	SetEntityMoveType(ent, MOVETYPE_NOCLIP);
 	DispatchSpawn(ent);
 }
@@ -520,6 +524,15 @@ void HideParachute(int client)
 		return;
 
 	AcceptEntityInput(iEnt, "FireUser2");
+}
+
+void UpdateParachuteModelLive(int client)
+{
+	int iEnt = g_Para[client].GetEntity();
+	if (iEnt == -1)
+		return;
+
+	AcceptEntityInput(iEnt, "FireUser3");
 }
 
 void TeleportParachute(int client)
