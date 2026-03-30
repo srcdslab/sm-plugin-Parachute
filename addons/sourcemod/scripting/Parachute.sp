@@ -285,11 +285,10 @@ public void Event_OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
 public void Event_OnPlayerTeam(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	if (!client || !IsClientInGame(client) || IsFakeClient(client))
+	if (!client || !IsClientInGame(client))
 		return;
 
-	if (event.GetInt("team") < 2)
-		DeleteParachute(client);
+	HideParachute(client);
 }
 
 public Action Command_Parachute(int client, int args)
@@ -366,6 +365,7 @@ public void OnPlayerRunCmdPost(int client, int buttons)
 	if (!g_Para[client].created && GetClientTeam(client) >= 2)
 	{
 		CreateParachute(client);
+		HideParachute(client);
 		g_Para[client].created = true;
 	}
 
