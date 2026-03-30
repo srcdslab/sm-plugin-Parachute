@@ -24,6 +24,7 @@ enum struct Parachute
 	int entRef;
 	bool active;
 	bool fallSpeed;
+	bool created;
 	float z;
 	float angles[3];
 	char model[PLATFORM_MAX_PATH];
@@ -33,6 +34,7 @@ enum struct Parachute
 		this.entRef = INVALID_ENT_REFERENCE;
 		this.active = false;
 		this.fallSpeed = false;
+		this.created = false;
 		this.z = 0.0;
 		this.angles[0] = this.angles[1] = this.angles[2] = 0.0;
 		this.model[0] = '\0';
@@ -75,7 +77,7 @@ public Plugin myinfo =
 	name = "SM Parachute",
 	author = "SWAT_88",
 	description = "Adds a parachute with low gravity when you hold the use key",
-	version = "2.7.1",
+	version = "2.7.2",
 	url = "http://www.sourcemod.net/"
 };
 
@@ -106,7 +108,7 @@ public OnPluginStart()
 	HookEvent("player_death", Event_OnPlayerDeath);
 	HookEvent("round_start", Event_OnRoundStart);
 	HookEvent("round_end", Event_OnRoundEnd);
-	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Post);
+	HookEvent("player_team", Event_OnPlayerTeam, EventHookMode_Post);
 
 	AutoExecConfig(true);
 
@@ -124,9 +126,6 @@ public OnPluginStart()
 			continue;
 
 		OnClientCookiesCached(i);
-
-		if (IsPlayerAlive(i))
-			CreateParachute(i);
 	}
 }
 
@@ -258,17 +257,17 @@ public void Event_OnPlayerDeath(Event event, const char[] name, bool dontBroadca
 	if (!client || !IsClientInGame(client) || IsFakeClient(client))
 		return;
 
-	StopParachute(client);
+	DeleteParachute(client);
 }
 
 public void Event_OnRoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (!IsClientInGame(i) || IsFakeClient(i))
+		if (!IsClientInGame(i))
 			continue;
 
-		CreateParachute(i);
+		DeleteParachute(i);
 	}
 }
 
@@ -283,13 +282,13 @@ public void Event_OnRoundEnd(Event event, const char[] name, bool dontBroadcast)
 	}
 }
 
-public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+public void Event_OnPlayerTeam(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	if (!client || !IsClientInGame(client) || IsFakeClient(client))
+	if (!client || !IsClientInGame(client))
 		return;
 
-	CreateParachute(client);
+	HideParachute(client);
 }
 
 public Action Command_Parachute(int client, int args)
@@ -342,8 +341,7 @@ int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			FormatEx(g_sClientModel[param1], sizeof(g_sClientModel[]), model);
 			g_hCookie.Set(param1, model);
 			CPrintToChat(param1, "{green}[SM] {default}You have changed your {olive}Parachute model {lightgreen}to %s", model);
-			if (IsPlayerAlive(param1))
-				UpdateParachuteModelLive(param1);
+			UpdateParachuteModelLive(param1);
 
 			OpenParachutesMenu(param1);
 		}
@@ -354,8 +352,22 @@ int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 
 public void OnPlayerRunCmdPost(int client, int buttons)
 {
-	if (IsFakeClient(client) || !IsPlayerAlive(client))
+	if (IsFakeClient(client))
 		return;
+
+	if (!IsPlayerAlive(client))
+	{
+		if (g_Para[client].created)
+			DeleteParachute(client);
+		return;
+	}
+
+	if (!g_Para[client].created && GetClientTeam(client) >= 2)
+	{
+		CreateParachute(client);
+		HideParachute(client);
+		g_Para[client].created = true;
+	}
 
 	// FAILSAFE: Gravity Exploit
 	if (!g_Para[client].active)
@@ -430,6 +442,7 @@ void UpdateParachute(int client, float velocity[3])
 
 	SetEntityGravity(client, 0.1);
 }
+
 bool GetClientParachuteInfo(int client, ParachuteInfo info)
 {
 	if (!g_arParachutes.Length)
@@ -463,6 +476,7 @@ void CreateParachute(int client)
 
 	g_Para[client].z = info.z;
 	g_Para[client].angles = info.angles;
+	g_Para[client].created = true;
 
 	DispatchKeyValue(ent, "model", info.model);
 	DispatchKeyValue(ent, "fademindist", "-1");
