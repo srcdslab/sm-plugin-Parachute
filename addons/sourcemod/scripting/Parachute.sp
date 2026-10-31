@@ -77,7 +77,7 @@ public Plugin myinfo =
 	name = "SM Parachute",
 	author = "SWAT_88",
 	description = "Adds a parachute with low gravity when you hold the use key",
-	version = "2.7.2",
+	version = "2.7.3",
 	url = "http://www.sourcemod.net/"
 };
 
@@ -89,6 +89,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public OnPluginStart()
 {
+	LoadTranslations("Parachute.phrases");
+
 	g_cvFallSpeed = CreateConVar("sm_parachute_fallspeed", "100", "Speed of the fall when you use the parachute");
 	g_cvLinear = CreateConVar("sm_parachute_linear", "1", "0: disables linear fallspeed - 1: enables it", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_cvDecrease = CreateConVar("sm_parachute_decrease", "50", "0: dont use Realistic velocity-decrease - x: sets the velocity-decrease");
@@ -295,13 +297,13 @@ public Action Command_Parachute(int client, int args)
 {
 	if (!client)
 	{
-		CReplyToCommand(client, "{green}[SM] {default}This command cannot be used from the server console.");
+		CReplyToCommand(client, "{green}[SM] {default}%t", "Not From Console");
 		return Plugin_Handled;
 	}
 
 	if (!AreClientCookiesCached(client))
 	{
-		CReplyToCommand(client, "{green}[SM] {default}Your settings (cookies) are not loaded yet. {olive}Please try this command again in a moment.");
+		CReplyToCommand(client, "{green}[SM] {default}%t", "Cookies Not Loaded");
 		return Plugin_Handled;
 	}
 
@@ -315,7 +317,7 @@ void OpenParachutesMenu(int client)
 		return;
 
 	Menu menu = new Menu(ParachutesMenuHandler);
-	menu.SetTitle("Choose your parachute model.\nSelected: %s", g_sClientModel[client]);
+	menu.SetTitle("%T", "Parachute Menu Title", client, g_sClientModel[client]);
 
 	for (int i = 0; i < g_arParachutes.Length; i++)
 	{
@@ -340,7 +342,7 @@ int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 			menu.GetItem(param2, model, sizeof(model));
 			FormatEx(g_sClientModel[param1], sizeof(g_sClientModel[]), model);
 			g_hCookie.Set(param1, model);
-			CPrintToChat(param1, "{green}[SM] {default}You have changed your {olive}Parachute model {lightgreen}to %s", model);
+			CPrintToChat(param1, "{green}[SM] {default}%t", "Parachute Model Changed", model);
 			UpdateParachuteModelLive(param1);
 
 			OpenParachutesMenu(param1);
