@@ -170,7 +170,7 @@ public void OnClientCookiesCached(int client)
 			g_arParachutes.GetArray(i, info, sizeof(info));
 			if (strcmp(info.name, cookieValue) == 0)
 			{
-				FormatEx(g_sClientModel[client], sizeof(g_sClientModel[]), cookieValue);
+				strcopy(g_sClientModel[client], sizeof(g_sClientModel[]), cookieValue);
 				return;
 			}
 		}
@@ -178,7 +178,7 @@ public void OnClientCookiesCached(int client)
 
 	ParachuteInfo info;
 	g_arParachutes.GetArray(0, info, sizeof(info));
-	FormatEx(g_sClientModel[client], sizeof(g_sClientModel[]), info.name);
+	strcopy(g_sClientModel[client], sizeof(g_sClientModel[]), info.name);
 }
 
 public void OnMapStart()
@@ -343,7 +343,7 @@ int ParachutesMenuHandler(Menu menu, MenuAction action, int param1, int param2)
 		{
 			char model[64];
 			menu.GetItem(param2, model, sizeof(model));
-			FormatEx(g_sClientModel[param1], sizeof(g_sClientModel[]), model);
+			strcopy(g_sClientModel[param1], sizeof(g_sClientModel[]), model);
 			g_hCookie.Set(param1, model);
 			CPrintToChat(param1, "{green}[SM] {default}%t", "Parachute Model Changed", model);
 			UpdateParachuteModelLive(param1);
