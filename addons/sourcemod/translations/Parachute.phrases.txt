@@ -1,0 +1,45 @@
+"Phrases"
+{
+	"Not From Console"
+	{
+		"en"		"This command cannot be used from the server console."
+		"fr"		"Cette commande ne peut pas être utilisée depuis la console du serveur."
+		"ru"		"Эту команду нельзя использовать из консоли сервера."
+		"es"		"Este comando no se puede usar desde la consola del servidor."
+		"de"		"Dieser Befehl kann nicht über die Serverkonsole benutzt werden."
+		"pt"		"Este comando não pode ser usado pelo console do servidor."
+		"chi"		"此命令无法在服务器控制台中使用。"
+	}
+	"Cookies Not Loaded"
+	{
+		"en"		"Your settings (cookies) are not loaded yet. {olive}Please try this command again in a moment."
+		"fr"		"Vos paramètres (cookies) ne sont pas encore chargés. {olive}Veuillez réessayer cette commande dans un instant."
+		"ru"		"Ваши настройки (cookies) ещё не загружены. {olive}Попробуйте эту команду ещё раз чуть позже."
+		"es"		"Tus ajustes (cookies) aún no se han cargado. {olive}Vuelve a intentar este comando en un momento."
+		"de"		"Deine Einstellungen (Cookies) sind noch nicht geladen. {olive}Bitte versuche den Befehl gleich noch einmal."
+		"pt"		"Suas configurações (cookies) ainda não foram carregadas. {olive}Tente este comando novamente em instantes."
+		"chi"		"你的设置（cookies）尚未加载。{olive}请稍后再试此命令。"
+	}
+	"Parachute Menu Title"
+	{
+		"#format"	"{1:s}"
+		"en"		"Choose your parachute model.\nSelected: {1}"
+		"fr"		"Choisissez votre modèle de parachute.\nSélectionné : {1}"
+		"ru"		"Выберите модель парашюта.\nВыбрано: {1}"
+		"es"		"Elige tu modelo de paracaídas.\nSeleccionado: {1}"
+		"de"		"Wähle dein Fallschirmmodell.\nAusgewählt: {1}"
+		"pt"		"Escolha seu modelo de paraquedas.\nSelecionado: {1}"
+		"chi"		"选择你的降落伞模型。\n当前选择：{1}"
+	}
+	"Parachute Model Changed"
+	{
+		"#format"	"{1:s}"
+		"en"		"You have changed your {olive}parachute model {lightgreen}to {1}"
+		"fr"		"Vous avez changé votre {olive}modèle de parachute {lightgreen}pour {1}"
+		"ru"		"Вы сменили {olive}модель парашюта {lightgreen}на {1}"
+		"es"		"Has cambiado tu {olive}modelo de paracaídas {lightgreen}a {1}"
+		"de"		"Du hast dein {olive}Fallschirmmodell {lightgreen}auf {1} geändert"
+		"pt"		"Você mudou seu {olive}modelo de paraquedas {lightgreen}para {1}"
+		"chi"		"你已将{olive}降落伞模型{lightgreen}更改为 {1}"
+	}
+}
