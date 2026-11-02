@@ -11,6 +11,9 @@ Greyscale, Pinkfairie, bl4nk, theY4Kman, Knagg0, KRoT@L, JTP10181, Dolly132, .Ru
 #include <clientprefs>
 #include <multicolors>
 
+#pragma semicolon 1
+#pragma newdecls required
+
 enum struct ParachuteInfo
 {
 	char name[64];
@@ -87,7 +90,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	return APLRes_Success;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	LoadTranslations("Parachute.phrases");
 
