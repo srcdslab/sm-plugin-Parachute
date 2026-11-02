@@ -80,7 +80,7 @@ public Plugin myinfo =
 	name = "SM Parachute",
 	author = "SWAT_88",
 	description = "Adds a parachute with low gravity when you hold the use key",
-	version = "2.7.3",
+	version = "2.7.4",
 	url = "http://www.sourcemod.net/"
 };
 
