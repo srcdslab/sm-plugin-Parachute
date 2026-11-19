@@ -9,6 +9,12 @@
 		"de"		"Dieser Befehl kann nicht über die Serverkonsole benutzt werden."
 		"pt"		"Este comando não pode ser usado pelo console do servidor."
 		"chi"		"此命令无法在服务器控制台中使用。"
+		"pl"		"Tej komendy nie można użyć z konsoli serwera."
+		"tr"		"Bu komut sunucu konsolundan kullanılamaz."
+		"it"		"Questo comando non può essere usato dalla console del server."
+		"ua"		"Цю команду не можна використовувати з консолі сервера."
+		"zho"		"此指令無法在伺服器主控台使用。"
+		"cze"		"Tento příkaz nelze použít z konzole serveru."
 	}
 	"Cookies Not Loaded"
 	{
@@ -19,6 +25,12 @@
 		"de"		"Deine Einstellungen (Cookies) sind noch nicht geladen. {olive}Bitte versuche den Befehl gleich noch einmal."
 		"pt"		"Suas configurações (cookies) ainda não foram carregadas. {olive}Tente este comando novamente em instantes."
 		"chi"		"你的设置（cookies）尚未加载。{olive}请稍后再试此命令。"
+		"pl"		"Twoje ustawienia (cookies) nie zostały jeszcze wczytane. {olive}Spróbuj użyć tej komendy ponownie za chwilę."
+		"tr"		"Ayarların (cookies) henüz yüklenmedi. {olive}Lütfen birazdan bu komutu tekrar dene."
+		"it"		"Le tue impostazioni (cookies) non sono ancora state caricate. {olive}Riprova questo comando tra un momento."
+		"ua"		"Ваші налаштування (cookies) ще не завантажені. {olive}Будь ласка, спробуйте цю команду ще раз за мить."
+		"zho"		"你的設定（cookies）尚未載入。{olive}請稍後再試一次此指令。"
+		"cze"		"Vaše nastavení (cookies) ještě nebylo načteno. {olive}Zkuste tento příkaz za chvíli znovu."
 	}
 	"Parachute Menu Title"
 	{
@@ -30,6 +42,12 @@
 		"de"		"Wähle dein Fallschirmmodell.\nAusgewählt: {1}"
 		"pt"		"Escolha seu modelo de paraquedas.\nSelecionado: {1}"
 		"chi"		"选择你的降落伞模型。\n当前选择：{1}"
+		"pl"		"Wybierz model spadochronu.\nWybrano: {1}"
+		"tr"		"Paraşüt modelini seç.\nSeçilen: {1}"
+		"it"		"Scegli il modello del paracadute.\nSelezionato: {1}"
+		"ua"		"Оберіть модель парашута.\nОбрано: {1}"
+		"zho"		"選擇你的降落傘模型。\n目前選擇：{1}"
+		"cze"		"Vyberte model padáku.\nVybráno: {1}"
 	}
 	"Parachute Model Changed"
 	{
@@ -41,5 +59,11 @@
 		"de"		"Du hast dein {olive}Fallschirmmodell {lightgreen}auf {1} geändert"
 		"pt"		"Você mudou seu {olive}modelo de paraquedas {lightgreen}para {1}"
 		"chi"		"你已将{olive}降落伞模型{lightgreen}更改为 {1}"
+		"pl"		"Zmieniono {olive}model spadochronu {lightgreen}na {1}"
+		"tr"		"{olive}Paraşüt modelini {lightgreen}{1} olarak değiştirdin"
+		"it"		"Hai cambiato il {olive}modello del paracadute {lightgreen}in {1}"
+		"ua"		"Ви змінили {olive}модель парашута {lightgreen}на {1}"
+		"zho"		"你已將{olive}降落傘模型{lightgreen}更改為 {1}"
+		"cze"		"Změnili jste {olive}model padáku {lightgreen}na {1}"
 	}
 }
